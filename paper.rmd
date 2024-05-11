@@ -1,0 +1,102 @@
+---
+title: "Analysis of Unicorn Companies in Top 10 Countries"
+author: "Raynard Widjaja"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning=FALSE)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r data_process}
+unicorn <- read_csv("unicorns.csv", show_col_types = FALSE) %>%
+  select(-1) %>%
+  mutate(`Valuation ($B)` = as.numeric(substr(`Valuation ($B)`, 2, nchar(`Valuation ($B)`)))) %>%
+  rename(Valuation = `Valuation ($B)`) %>%
+  mutate(`Date Joined` = as.Date(`Date Joined`, format = "%m/%d/%Y")) %>%
+  mutate(year = year(`Date Joined`)) %>%
+  mutate(month = month(`Date Joined`))
+  
+country <- read_csv("Country_Data.csv", show_col_types = FALSE)
+
+num_country <- unicorn %>% 
+  group_by(Country) %>% 
+  summarize(num_unicorn = n(), valuation=sum(Valuation))
+
+top_num_unicorn <- country %>%
+  left_join(num_country, by=join_by(country==Country)) %>%
+  arrange(desc(num_unicorn)) %>%
+  slice(1:10)
+
+uni_country <- unicorn %>%
+  group_by(Country, Industry) %>%
+  summarize(num_industry = n()) %>%
+  left_join(country, by=join_by(Country==country)) %>%
+  left_join(num_country, by=join_by(Country==Country)) %>%
+  filter(Country %in% c("Brazil", "Canada", "China", "France", "Germany", "India", "Israel", "Singapore", "United Kingdom", "United States"))
+```
+
+## How does the total valuation and the average valuation of unicorn companies in the US compare to other countries ?
+
+```{r plot1.1}
+# Total valuation of Unicorn per country (Top 10)
+ggplot(data=top_num_unicorn) + 
+  geom_col(aes(x=valuation, y=country)) +
+  labs(x = "Total Valuation ($B)", y = "Country")
+```
+Title: Total valuation of unicorn companies in top 10 countries
+
+The US has the most total valuation of unicorn companies with more than 2 Trillion USD which is almost four times more than than China in second place. The reason for this domination is funding and innovation capability. The US has more venture capital funding than any other country. This allows entrepreneurs to launch projects without worrying about funding and due to its strong education system, it creates skilled workforces and knowledge spillover for example in the Bay Area or Silicon Valley, which encourages experimentation with ideas and solutions. One probable cause for the high total valuation could be the "Unicorn Bubble". A unicorn bubble is a theoretical economic bubble that would occur when unicorn startup companies are overvalued by venture capitalists or investors. This can either occur during the private phase of these unicorn companies, or in an initial public offering. The US has the largest startup economy in the world with over 400,000 new companies created each year which makes it the most susceptible and the driver of the startup bubble.
+
+```{r plot1.2}
+# Average valuation of Unicorn per country (Top 10)
+ggplot(data=top_num_unicorn) + 
+  geom_col(aes(x=valuation/num_unicorn, y=country)) +
+  labs(x = "Average Valuation ($B)", y = "Country")
+```
+Title: Average valuation of unicorn companies in top 10 countries
+
+However if we take a look at the average valuation of the unicorn companies in every country, the result is quite suprising, Singapore takes the first place with the highest average valuation with more than 5 billion USD and the US is not even in the top three. There could be several factor that caused this. It could be the case that the US has much more unicorns but with small valuations which resulted a lower average valuation. 
+Another factors that leads to this are Singapore has one of the most efficient and bureaucracy-free regulatory frameworks in the world, attractive tax system, good infrastructure, and productive workforce. The proliferation of unicorn companies in Singapore indicates an investment-friendly business environment. They draw in investments due to their high growth potential and expected future gains in the event of a buy-out.
+
+
+## Does higher GDP per capita mean more unicorn companies ?
+```{r plot2}
+# Correlation of GDP and Number of Unicorn
+ggplot(data=top_num_unicorn) + 
+  geom_line(aes(x=gdpp, y=num_unicorn)) +
+  geom_point(aes(x=gdpp, y=num_unicorn, color=country)) +
+  labs(x = "GDP per Capita", y = "Number of Unicorn")
+```
+Title: Correlation of GDP per Capita and Number of Unicorns in Top 10 Countries
+
+Country with higher GDP per capita tends to have better infrastructure, better life expectancy, more funding, and furthermore higher quality of education that results to more skilled workforce. 
+
+As we can see here, the US has a high GDP per capita and a high number of unicorn companies. However, established country like France, Germany, and United Kingdom, has a relatively very low number of unicorn companies compare to the US. These could be because of the strict regulation that’s opposed by the European Parliament like regulation on starting a company, minimum wage, data privacy, and many other complicated regulations and bureaucracies.
+
+If we shift our observation to left side of the graph, surprisingly, country like India and China, which has a relatively low GDP per capita compared to the US and European countries, has way more unicorn companies compared to established countries in Europe. 
+
+The reason for this is quite straight-forward, huge support from the government. The Chinese and Indian governments give enormous supports to start-ups by incentivizing technological development and innovation and by increasing the venture capital investment. But the important key success factor that these two countries have, is cheaper skilled workforce. With the huge amount of population that these two countries have, it is easy for them to get cheap skilled labor.
+
+
+## What are the distributions of the industries of the unicorn companies in countries with low GDP per capita and countries with high GDP per capita ?
+
+```{r plot3}
+# Average Num of Unicorn and GDP and Industries
+ggplot(data=uni_country) + 
+  geom_point(aes(x=gdpp, y=num_industry/num_unicorn, color=Industry)) + 
+  labs(x = "GDP per Capita", y = "Average Number of Unicorn")
+```
+
+Title : Comparison of the Industries of the Unicorn Companies in Country with Low and High GDP per Capita
+
+There is a significant difference of the industries of the unicorn in countries with lower GDP per capita compared to countries with higher GDP per capita. A lot of unicorns from country with low GDP per capita tend to be in consumer retails, industrial, and financial services. In country with high GDP per capita most of the unicorn companies are in the financial services or enterprise tech industries.
+
+
+## About the Data
+
+The two dataset utilized to address these research inquiries is provided by Kaggle. The unicorn dataset contain a complete list of unicorn companies in the world. A unicorn company, or unicorn startup, is a private company with a valuation over $1 billion. As of March 2022, there are 1,000 unicorns around the world. The country dataset provides a comprehensive view of various socioeconomic indicators across different countries. It includes data on child mortality rates, export and import figures, healthcare expenditures, income levels, inflation rates, life expectancy, fertility rates, and Gross Domestic Product (GDP). Analyzing this dataset can offer insights into the interplay between economic factors, public health, and demographic trends on a global scale.
+
+We can then further process the data by filtering only the top ten countries and join both of the dataset by the country.
